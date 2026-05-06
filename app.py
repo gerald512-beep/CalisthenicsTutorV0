@@ -42,6 +42,10 @@ MAX_FILE_BYTES = 50 * 1024 * 1024  # 50 MB
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-key-change-in-prod")
 
+# Trust proxy headers from Cloudflare tunnel so url_for() generates https:// URLs
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 resend.api_key = os.environ.get("RESEND_API_KEY")
 
 # ---------------------------------------------------------------------------
