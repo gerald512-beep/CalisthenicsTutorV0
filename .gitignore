@@ -1,0 +1,29 @@
+# Environment
+.env
+
+# Database
+database.db
+
+# Upload/output folders (runtime artifacts)
+uploads/
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Logs
+app.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

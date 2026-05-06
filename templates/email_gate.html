@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calisthenics Tutor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script async src="/umami/script.js" data-website-id="UMAMI_WEBSITE_ID_PLACEHOLDER"></script>
+</head>
+<body>
+  <div class="gate-container">
+    <div class="gate-card">
+      <h1 class="gate-title">Calisthenics Tutor</h1>
+      <p class="gate-subtitle">AI-powered push-up form analysis. Free early access.</p>
+
+      {% if error %}
+        <div class="error-box"><p>{{ error }}</p></div>
+      {% endif %}
+
+      <form action="/gate" method="post">
+        <div class="gate-field">
+          <input
+            type="email"
+            name="email"
+            placeholder="Enter your email to continue"
+            class="gate-input"
+            required
+            autofocus
+          >
+        </div>
+        <button
+          type="submit"
+          class="btn-gate"
+          data-umami-event="email-gate-submit"
+        >Send my access code</button>
+      </form>
+
+      <p class="gate-note">No password. No spam. We'll send a 6-digit code to your inbox.</p>
+    </div>
+  </div>
+</body>
+</html>

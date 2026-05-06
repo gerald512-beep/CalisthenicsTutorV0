@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify — Calisthenics Tutor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script async src="/umami/script.js" data-website-id="UMAMI_WEBSITE_ID_PLACEHOLDER"></script>
+</head>
+<body>
+  <div class="gate-container">
+    <div class="gate-card">
+      <h1 class="gate-title">Check your inbox</h1>
+      <p class="gate-subtitle">
+        We sent a 6-digit code to <strong>{{ email }}</strong>. Enter it below.
+      </p>
+
+      {% if error %}
+        <div class="error-box"><p>{{ error }}</p></div>
+      {% endif %}
+      {% if success %}
+        <div class="success-box"><p>{{ success }}</p></div>
+      {% endif %}
+
+      <form action="/verify" method="post">
+        <div class="gate-field">
+          <input
+            type="text"
+            name="code"
+            placeholder="000000"
+            maxlength="6"
+            class="gate-input code-input"
+            autofocus
+            autocomplete="one-time-code"
+            inputmode="numeric"
+          >
+        </div>
+        <button type="submit" class="btn-gate">Verify and continue</button>
+      </form>
+
+      <div style="margin-top:16px; text-align:center;">
+        <form action="/resend-code" method="post" style="display:inline;">
+          <button type="submit" class="btn-link">Resend code</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

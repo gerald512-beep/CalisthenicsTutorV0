@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis Results</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script async src="/umami/script.js" data-website-id="UMAMI_WEBSITE_ID_PLACEHOLDER"></script>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ── Hero card ── -->
+    <div class="hero-card">
+      <h1>Your Results</h1>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value">{{ rep_count }}</div>
+          <div class="stat-label">Reps detected</div>
+        </div>
+        <div class="stat-card">
+          {% set elbow_color = '#16a34a' if elbow_angle < 90 else ('#ea580c' if elbow_angle <= 110 else '#dc2626') %}
+          <div class="stat-value" style="color:{{ elbow_color }}">{{ "%.1f"|format(elbow_angle) }}&deg;</div>
+          <div class="stat-label">Deepest elbow</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ duration_seconds }}s</div>
+          <div class="stat-label">Set duration</div>
+        </div>
+      </div>
+
+      {% if rep_depths %}
+      <div class="rep-breakdown">
+        <div class="rep-list">
+          {% for depth in rep_depths %}
+            <div class="rep-item {% if depth <= 90 %}rep-good{% elif depth <= 110 %}rep-ok{% else %}rep-shallow{% endif %}">
+              <span class="rep-num">Rep {{ loop.index }}</span>
+              <span class="rep-depth">{{ depth }}&deg;</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% set all_ok = n_sag_reps == 0 and n_pike_reps == 0 and n_head_frames == 0 and elbow_angle < 90 %}
+      <div class="card {% if all_ok %}card-pass{% else %}card-correction{% endif %}" style="margin-bottom:0">
+        <span class="card-icon">{% if all_ok %}✅{% else %}⚠️{% endif %}</span>
+        <span class="card-text">{{ summary_feedback }}</span>
+      </div>
+    </div>
+
+    <!-- ── Annotated frame ── -->
+    <div class="frame-wrapper">
+      <h2>Deepest point (annotated)</h2>
+      <img
+        src="{{ url_for('serve_output', filename=image_filename) }}"
+        alt="Annotated push-up frame at deepest point"
+        class="annotated-frame"
+      >
+    </div>
+
+    <!-- ── Elbow angle chart ── -->
+    <div class="chart-section">
+      <h2>Elbow angle</h2>
+      <p class="chart-hint">Lower = deeper rep. Target: reach below 90&deg; at the bottom of each rep.</p>
+      <canvas id="elbow-chart" class="angle-chart"></canvas>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:#1565c0"></span>Elbow angle</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#43a047"></span>90&deg; target</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#fb8c00"></span>110&deg; caution</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#94a3b8;border-style:dashed"></span>R1, R2… rep starts</span>
+      </div>
+    </div>
+
+    <!-- ── Hip alignment chart ── -->
+    <div class="chart-section">
+      <h2>Hip alignment</h2>
+      <p class="chart-hint">
+        Hips should stay in line with your shoulders and heels — the green band is the acceptable zone.
+        Below 160&deg; = sagging, above 200&deg; = piking.
+      </p>
+      <canvas id="hip-chart" class="angle-chart"></canvas>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:#6a1b9a"></span>Hip angle</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:rgba(67,160,71,0.25);border:1px solid #a5d6a7"></span>Safe zone</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#43a047"></span>180&deg; straight</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#fb8c00"></span>Sag / pike limits</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#94a3b8;border-style:dashed"></span>R1, R2… rep starts</span>
+      </div>
+    </div>
+
+    <!-- ── Head alignment chart ── -->
+    <div class="chart-section">
+      <h2>Head alignment</h2>
+      <p class="chart-hint">
+        Good head position sits between 125&deg; and 155&deg; — gaze slightly forward, head in line with your spine.
+        Below 125&deg; means your head is dropping too far or your chin is jutting severely.
+      </p>
+      <canvas id="head-chart" class="angle-chart"></canvas>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:#00838f"></span>Head angle</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:rgba(67,160,71,0.25);border:1px solid #a5d6a7"></span>Safe zone</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#43a047"></span>155&deg; upper</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#fb8c00"></span>125&deg; lower</span>
+        <span class="legend-item"><span class="legend-swatch legend-dashed" style="border-color:#94a3b8;border-style:dashed"></span>R1, R2… rep starts</span>
+      </div>
+    </div>
+
+    <a href="{{ url_for('upload') }}" class="btn-back" data-umami-event="analyze-again">Analyze another video</a>
+
+    <!-- ── Micro-survey ── -->
+    <div class="survey-section" id="survey-section">
+      <h2>Quick feedback <span class="survey-badge">30 seconds</span></h2>
+
+      <div class="survey-question">
+        <p class="survey-q">Would you use this again after your next workout?</p>
+        <div class="pill-group">
+          <button type="button" class="pill" data-q="q1" data-val="yes">Yes</button>
+          <button type="button" class="pill" data-q="q1" data-val="maybe">Maybe</button>
+          <button type="button" class="pill" data-q="q1" data-val="no">No</button>
+        </div>
+      </div>
+
+      <div class="survey-question">
+        <p class="survey-q">Do you currently train with an instructor or coach?</p>
+        <div class="pill-group">
+          <button type="button" class="pill" data-q="q2" data-val="yes_in_person">Yes, in person</button>
+          <button type="button" class="pill" data-q="q2" data-val="yes_online">Yes, online</button>
+          <button type="button" class="pill" data-q="q2" data-val="no_self_taught">No, self-taught</button>
+        </div>
+      </div>
+
+      <div class="survey-question">
+        <p class="survey-q">What would you improve or add?</p>
+        <textarea id="q3-text" class="survey-textarea" placeholder="Type anything here..."></textarea>
+      </div>
+
+      <button
+        type="button"
+        id="survey-submit-btn"
+        class="btn-survey"
+        data-umami-event="survey-submit"
+      >Send feedback</button>
+      <p id="survey-error" class="survey-error hidden"></p>
+    </div>
+
+    <div id="survey-thanks" class="survey-thanks hidden">
+      Thanks. Your feedback helps a lot.
+    </div>
+
+    <!-- Debug line -->
+    <p style="font-size:11px; color:#94a3b8; text-align:center; margin-top:24px;">
+      Elbow avg: {{ "%.1f"|format(avg_elbow_angle) }}&deg; &middot;
+      Hip (display frame): {{ "%.1f"|format(hip_angle) }}&deg; &middot;
+      {{ frame_count }} frames processed
+    </p>
+  </div>
+
+  <div id="status-bar" class="status-bar">Analysis complete &mdash; {{ frame_count }} frames processed.</div>
+
+  <script>
+    // ── Shared chart drawing function ─────────────────────────────
+    function drawChart(canvasId, data, opts, afterDraw) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      canvas.width  = canvas.offsetWidth || 560;
+      canvas.height = 200;
+
+      const W = canvas.width, H = canvas.height;
+      const PAD = { top: 16, right: 16, bottom: 32, left: 44 };
+      const cW = W - PAD.left - PAD.right;
+      const cH = H - PAD.top  - PAD.bottom;
+
+      const minY = opts.minY, maxY = opts.maxY;
+
+      function toX(i) {
+        return PAD.left + (i / Math.max(data.length - 1, 1)) * cW;
+      }
+      function toY(val) {
+        return PAD.top + ((maxY - val) / (maxY - minY)) * cH;
+      }
+
+      if (opts.goodBand) {
+        const [lo, hi] = opts.goodBand;
+        ctx.fillStyle = 'rgba(67, 160, 71, 0.07)';
+        ctx.fillRect(PAD.left, toY(hi), cW, toY(lo) - toY(hi));
+      }
+
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      opts.gridLines.forEach(deg => {
+        const y = toY(deg);
+        ctx.beginPath();
+        ctx.moveTo(PAD.left, y);
+        ctx.lineTo(W - PAD.right, y);
+        ctx.stroke();
+        ctx.fillStyle = '#888';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(deg + '°', PAD.left - 4, y + 4);
+      });
+
+      if (opts.refLines) {
+        opts.refLines.forEach(ref => {
+          const y = toY(ref.value);
+          ctx.strokeStyle = ref.color;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(PAD.left, y);
+          ctx.lineTo(W - PAD.right, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = ref.color;
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(ref.label, PAD.left + 4, y - 4);
+        });
+      }
+
+      ctx.strokeStyle = opts.lineColor || '#1565c0';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      data.forEach((val, i) => {
+        const x = toX(i), y = toY(Math.max(minY, Math.min(maxY, val)));
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      const fillColor = opts.fillColor || 'rgba(21, 101, 192, 0.08)';
+      ctx.fillStyle = fillColor;
+      ctx.beginPath();
+      data.forEach((val, i) => {
+        const x = toX(i), y = toY(Math.max(minY, Math.min(maxY, val)));
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.lineTo(toX(data.length - 1), toY(minY));
+      ctx.lineTo(toX(0), toY(minY));
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#888';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.setLineDash([]);
+      ctx.fillText('Frame (time →)', PAD.left + cW / 2, H - 4);
+
+      if (afterDraw) afterDraw(ctx, toX, toY, PAD, W, H);
+    }
+
+    // ── Rep boundary overlay (shared across all 3 charts) ────────
+    const repBoundaries = {{ rep_boundaries | tojson }};
+
+    function drawRepLines(ctx, toX, toY, PAD, W, H) {
+      repBoundaries.forEach((frameIdx, n) => {
+        const x = toX(frameIdx);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, PAD.top);
+        ctx.lineTo(x, H - PAD.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('R' + (n + 1), x, PAD.top + 10);
+      });
+    }
+
+    // ── Draw all three charts ─────────────────────────────────────
+    const elbowAngles = {{ elbow_angles | tojson }};
+    const hipAngles   = {{ hip_angles   | tojson }};
+    const headAngles  = {{ head_angles  | tojson }};
+
+    drawChart('elbow-chart', elbowAngles, {
+      minY: 0, maxY: 200,
+      gridLines: [0, 45, 90, 135, 180],
+      refLines: [
+        { value: 90,  color: '#43a047', label: '90° target' },
+        { value: 110, color: '#fb8c00', label: '110° limit'  },
+      ],
+      lineColor: '#1565c0',
+      fillColor: 'rgba(21, 101, 192, 0.08)',
+    }, drawRepLines);
+
+    drawChart('hip-chart', hipAngles, {
+      minY: 140, maxY: 220,
+      gridLines: [140, 160, 180, 200, 220],
+      goodBand: [160, 200],
+      refLines: [
+        { value: 180, color: '#43a047', label: '180° straight' },
+        { value: 160, color: '#fb8c00', label: '160° sag limit'  },
+        { value: 200, color: '#fb8c00', label: '200° pike limit' },
+      ],
+      lineColor: '#6a1b9a',
+      fillColor: 'rgba(106, 27, 154, 0.07)',
+    }, drawRepLines);
+
+    drawChart('head-chart', headAngles, {
+      minY: 100, maxY: 180,
+      gridLines: [100, 125, 140, 155, 180],
+      goodBand: [125, 155],
+      refLines: [
+        { value: 155, color: '#43a047', label: '155° upper limit' },
+        { value: 125, color: '#fb8c00', label: '125° lower limit' },
+      ],
+      lineColor: '#00838f',
+      fillColor: 'rgba(0, 131, 143, 0.07)',
+    }, drawRepLines);
+
+    // ── Survey logic ──────────────────────────────────────────────
+    const analysisId = {{ analysis_id }};
+    const userEmail  = {{ user_email | tojson }};
+    const surveyAnswers = { q1: null, q2: null };
+
+    document.querySelectorAll('.pill').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const q = this.dataset.q;
+        document.querySelectorAll(`[data-q="${q}"]`).forEach(b => b.classList.remove('pill-active'));
+        this.classList.add('pill-active');
+        surveyAnswers[q] = this.dataset.val;
+      });
+    });
+
+    document.getElementById('survey-submit-btn').addEventListener('click', async function () {
+      const errEl = document.getElementById('survey-error');
+      if (!surveyAnswers.q1) {
+        errEl.textContent = 'Please answer question 1.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (!surveyAnswers.q2) {
+        errEl.textContent = 'Please answer question 2.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      errEl.classList.add('hidden');
+
+      try {
+        const res = await fetch('/survey', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            q1: surveyAnswers.q1,
+            q2: surveyAnswers.q2,
+            q3: document.getElementById('q3-text').value,
+            analysis_id: analysisId,
+            email: userEmail,
+          }),
+        });
+        if (res.ok) {
+          document.getElementById('survey-section').classList.add('hidden');
+          document.getElementById('survey-thanks').classList.remove('hidden');
+        }
+      } catch (err) {
+        console.error('Survey submit failed', err);
+      }
+    });
+  </script>
+</body>
+</html>

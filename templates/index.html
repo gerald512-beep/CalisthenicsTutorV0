@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Push-Up Analyzer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script async src="/umami/script.js" data-website-id="UMAMI_WEBSITE_ID_PLACEHOLDER"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Push-Up Form Analyzer</h1>
+    <p class="subtitle">Record a side-view video and get instant coaching feedback.</p>
+
+    <!-- Camera angle reminder -->
+    <div class="reminder-box">
+      <strong>Before you film:</strong><br>
+      Film from the <strong>SIDE</strong>. Place your camera 2&ndash;3 meters away
+      at hip height. Landscape mode works best.
+    </div>
+
+    <!-- Flash error messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="error-box">
+          {% for msg in messages %}
+            <p>{{ msg }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form id="upload-form" action="/analyze" method="post" enctype="multipart/form-data">
+
+      <!-- Live camera preview -->
+      <video id="camera-preview" class="camera-preview" autoplay muted playsinline></video>
+
+      <!-- Playback after recording -->
+      <video id="playback-preview" class="camera-preview hidden" controls></video>
+
+      <div class="record-controls">
+        <button type="button" id="btn-start" class="btn-record">Start recording</button>
+        <button type="button" id="btn-stop" class="btn-stop hidden">Stop recording</button>
+        <button type="button" id="btn-retake" class="btn-retake hidden">Retake</button>
+      </div>
+
+      <p id="record-status" class="record-status"></p>
+
+      <!-- Hidden file input that receives the recorded blob -->
+      <input id="recorded-input" type="file" name="video" class="hidden">
+
+      <!-- Submit -->
+      <button type="submit" id="submit-btn" data-umami-event="upload-submit">Analyze</button>
+      <div id="spinner" class="spinner hidden"></div>
+
+    </form>
+  </div>
+
+  <!-- Status bar -->
+  <div id="status-bar" class="status-bar"></div>
+
+  <script>
+    // ── Camera & MediaRecorder ─────────────────────────────────────
+    let stream = null;
+    let mediaRecorder = null;
+    let chunks = [];
+
+    const cameraPreview   = document.getElementById('camera-preview');
+    const playbackPreview = document.getElementById('playback-preview');
+    const btnStart        = document.getElementById('btn-start');
+    const btnStop         = document.getElementById('btn-stop');
+    const btnRetake       = document.getElementById('btn-retake');
+    const recStatus       = document.getElementById('record-status');
+    const recordInput     = document.getElementById('recorded-input');
+    const submitBtn       = document.getElementById('submit-btn');
+    const spinner         = document.getElementById('spinner');
+    const statusBar       = document.getElementById('status-bar');
+    const form            = document.getElementById('upload-form');
+
+    async function startCameraStream() {
+      if (stream) return;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        cameraPreview.srcObject = stream;
+        cameraPreview.classList.remove('hidden');
+        playbackPreview.classList.add('hidden');
+        btnStart.classList.remove('hidden');
+        btnStop.classList.add('hidden');
+        btnRetake.classList.add('hidden');
+        recStatus.textContent = 'Camera ready. Press Start when you are set.';
+      } catch (err) {
+        recStatus.textContent = 'Camera access denied. Allow camera permission and try again.';
+        console.error(err);
+      }
+    }
+
+    function stopCameraStream() {
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+    }
+
+    btnStart.addEventListener('click', () => {
+      if (!stream) return;
+      chunks = [];
+
+      const mimeType = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+        .find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+      mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'video/webm' });
+        const url  = URL.createObjectURL(blob);
+
+        playbackPreview.src = url;
+        playbackPreview.classList.remove('hidden');
+        cameraPreview.classList.add('hidden');
+
+        const file = new File([blob], 'recorded.webm', { type: blob.type });
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        recordInput.files = dt.files;
+
+        btnStop.classList.add('hidden');
+        btnRetake.classList.remove('hidden');
+        recStatus.textContent = 'Recording saved. Review it above, then click Analyze.';
+      };
+
+      mediaRecorder.start(200);
+      btnStart.classList.add('hidden');
+      btnStop.classList.remove('hidden');
+      recStatus.textContent = 'Recording… Press Stop when done.';
+    });
+
+    btnStop.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    });
+
+    btnRetake.addEventListener('click', () => {
+      recordInput.value = '';
+      playbackPreview.classList.add('hidden');
+      btnRetake.classList.add('hidden');
+      btnStart.classList.remove('hidden');
+      cameraPreview.classList.remove('hidden');
+      recStatus.textContent = 'Camera ready. Press Start when you are set.';
+    });
+
+    // ── Form submit ───────────────────────────────────────────────
+    form.addEventListener('submit', function (e) {
+      if (recordInput.files.length === 0) {
+        e.preventDefault();
+        recStatus.textContent = 'Please record a video first.';
+        return;
+      }
+      submitBtn.classList.add('hidden');
+      spinner.classList.remove('hidden');
+      statusBar.textContent = 'Uploading and analyzing your video…';
+      stopCameraStream();
+    });
+
+    // Start camera on page load
+    startCameraStream();
+
+    // Flash error → status bar
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        statusBar.textContent = '{{ messages[0] | e }}';
+      {% endif %}
+    {% endwith %}
+  </script>
+</body>
+</html>
