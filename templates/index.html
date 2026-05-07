@@ -49,14 +49,16 @@
       <!-- Hidden file input that receives the recorded blob -->
       <input id="recorded-input" type="file" name="video" class="hidden">
 
-      <!-- Upload option -->
-      <div class="upload-divider">
-        <span>or upload a video file</span>
+      <!-- Upload option (hidden) -->
+      <div id="upload-section" style="display:none">
+        <div class="upload-divider">
+          <span>or upload a video file</span>
+        </div>
+        <label class="upload-label">
+          <input id="upload-input" type="file" accept="video/*">
+          <span id="upload-label-text">Choose file…</span>
+        </label>
       </div>
-      <label class="upload-label">
-        <input id="upload-input" type="file" accept="video/*">
-        <span id="upload-label-text">Choose file…</span>
-      </label>
 
       <!-- Submit -->
       <button type="submit" id="submit-btn" data-umami-event="upload-submit">Analyze</button>
