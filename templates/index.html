@@ -49,6 +49,15 @@
       <!-- Hidden file input that receives the recorded blob -->
       <input id="recorded-input" type="file" name="video" class="hidden">
 
+      <!-- Upload option -->
+      <div class="upload-divider">
+        <span>or upload a video file</span>
+      </div>
+      <label class="upload-label">
+        <input id="upload-input" type="file" accept="video/*">
+        <span id="upload-label-text">Choose file…</span>
+      </label>
+
       <!-- Submit -->
       <button type="submit" id="submit-btn" data-umami-event="upload-submit">Analyze</button>
       <div id="spinner" class="spinner hidden"></div>
@@ -72,6 +81,8 @@
     const btnRetake       = document.getElementById('btn-retake');
     const recStatus       = document.getElementById('record-status');
     const recordInput     = document.getElementById('recorded-input');
+    const uploadInput     = document.getElementById('upload-input');
+    const uploadLabelText = document.getElementById('upload-label-text');
     const submitBtn       = document.getElementById('submit-btn');
     const spinner         = document.getElementById('spinner');
     const statusBar       = document.getElementById('status-bar');
@@ -150,11 +161,22 @@
       recStatus.textContent = 'Camera ready. Press Start when you are set.';
     });
 
+    // Show chosen filename
+    uploadInput.addEventListener('change', () => {
+      if (uploadInput.files.length > 0) {
+        uploadLabelText.textContent = uploadInput.files[0].name;
+        const dt = new DataTransfer();
+        dt.items.add(uploadInput.files[0]);
+        recordInput.files = dt.files;
+        recStatus.textContent = '';
+      }
+    });
+
     // ── Form submit ───────────────────────────────────────────────
     form.addEventListener('submit', function (e) {
       if (recordInput.files.length === 0) {
         e.preventDefault();
-        recStatus.textContent = 'Please record a video first.';
+        recStatus.textContent = 'Please record a video or choose a file to upload.';
         return;
       }
       submitBtn.classList.add('hidden');
